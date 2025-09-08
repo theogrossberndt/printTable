@@ -5,7 +5,7 @@ from .leafTable import LeafTable
 from .printableLines import StaticLines, ExpandableLines, HLine
 
 class ExpandableNode:
-	def __init__(self, groupName, df, leftColWidths, screenWidth, parent):
+	def __init__(self, groupName, df, leftColWidths, countableCols, hiddenCols, screenWidth, parent):
 		self.groupName = groupName
 		self.firstColName = Chars.colNameCleanup(df.columns[0])
 		self.children = []
@@ -14,15 +14,22 @@ class ExpandableNode:
 		self.parent = parent
 		self.isFocused = False
 
+		# Sum all countable columns
+		self.columnSummary = 0
+		for col in countableCols:
+			if col in df.columns:
+				self.columnSummary += pd.to_numeric(df[col].fillna(0), downcast='integer').sum()
+
 		# Bare minimum width is the length of the column header
 		self.myColWidth = len(self.firstColName)
 
 		for subName, subTable in df.groupby(df.columns[0]):
+			subName = str(subName)
 			subTable.dropna(axis=1, how='all', inplace=True)
 
 			if len(subTable) <= 1 or len(df.columns) == 1:
 				# Leaf tables only take up the length of their entry in column 0
-				self.myColWidth = max(self.myColWidth, len(str(subName)))
+				self.myColWidth = max(self.myColWidth, len(subName))
 				self.leafTables.append(subTable)
 				continue
 
@@ -35,7 +42,7 @@ class ExpandableNode:
 
 		# Run through the children building each into its own node
 		self.colWidths = [*leftColWidths, self.myColWidth]
-		self.children = [ExpandableNode(*params, self.colWidths, self.screenWidth, self) for params in self.children]
+		self.children = [ExpandableNode(*params, self.colWidths, countableCols, hiddenCols, self.screenWidth, self) for params in self.children]
 
 		# If we have any leaf tables, combine them, group them by their column usage, and turn each into its own printable table
 		if len(self.leafTables) > 0:
@@ -44,7 +51,7 @@ class ExpandableNode:
 			leaves['filledCols'] = leaves.notna().agg(lambda row: tuple(leaves.columns[row]), axis=1)
 			self.leafTables = []
 			for cols, subTable in leaves.groupby('filledCols'):
-				self.leafTables.append(LeafTable(subTable[list(cols)], self.colWidths, self.screenWidth))
+				self.leafTables.append(LeafTable(subTable[list(cols)], self.colWidths, countableCols, hiddenCols, self.screenWidth))
 
 		# Initially, set all nodes to colapsed unless it only has a single child
 #		self.expanded = len(self.children) + len(self.leafTables) == 1
@@ -96,9 +103,11 @@ class ExpandableNode:
 
 		builtChildren = [child.buildLines() for child in self.children]
 
+		summaryStr = 'Total: ' + str(self.columnSummary)
+
 		# The minified (unexpanded) representation of a child is just the group name with an hline
-		unfocused = StaticLines([Chars.DOWN_ARROW + ' ' + self.groupName, ''], self.colWidths, self.screenWidth, decorator = [Chars.groupDecorator(False), None])
-		focused = StaticLines([Chars.DOWN_ARROW + ' ' + self.groupName, ''], self.colWidths, self.screenWidth, decorator = [Chars.groupDecorator(True), None])
+		unfocused = StaticLines([Chars.DOWN_ARROW + ' ' + self.groupName, summaryStr], self.colWidths, self.screenWidth, decorator = [Chars.groupDecorator(False), None])
+		focused = StaticLines([Chars.DOWN_ARROW + ' ' + self.groupName, summaryStr], self.colWidths, self.screenWidth, decorator = [Chars.groupDecorator(True), None])
 
 		minifiedUnfocused = [
 			HLine(2, self.screenWidth, sepClass = Chars.heavyHLineSep),

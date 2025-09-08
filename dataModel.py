@@ -3,13 +3,14 @@ import os
 from .rootNode import RootNode
 
 class DataModel:
-	def __init__(self, df, screenWidth):
+	def __init__(self, df, countableCols, hiddenCols, screenWidth):
 		self.df = df
 
-		self.root = RootNode(self.df, screenWidth)
+		self.root = RootNode(self.df, countableCols, hiddenCols, screenWidth)
 		expandables = self.root.getExpandables()
 		self.focused = expandables[0] if len(expandables) > 0 else None
-		self.focused.isFocused = True
+		if self.focused is not None:
+			self.focused.isFocused = True
 
 
 	def click(self):

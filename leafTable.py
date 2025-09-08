@@ -1,17 +1,25 @@
 from .chars import Chars
 from .printableLines import StaticLines
+import pandas as pd
 
 class LeafTable:
 	# Left col widths also includes the first column of the df for prettier printing with the other rows
-	def __init__(self, df, leftColWidths, screenWidth):
+	def __init__(self, df, leftColWidths, countableCols, hiddenCols, screenWidth):
 		self.df = df.astype(str)[df.notna()]
-		cleanCols = Chars.colNameCleanup(self.df.columns)
-		self.df.rename(columns = {self.df.columns[c]: cleanCols[c] for c in range(len(cleanCols))}, inplace = True)
-		self.colWidths = [*leftColWidths]
-		self.screenWidth = screenWidth
 
+		self.colWidths = [*leftColWidths]
 		for col in self.df.columns[1:]:
 			self.colWidths.append(int(max(len(col), self.df[col].str.len().max())))
+
+		for col in self.df.columns:
+			if col in hiddenCols:
+				self.df.drop(columns=col, inplace=True)
+			elif col in countableCols:
+				self.df[col] = pd.to_numeric(self.df[col], downcast='integer')
+
+		cleanCols = Chars.colNameCleanup(self.df.columns)
+		self.df.rename(columns = {self.df.columns[c]: cleanCols[c] for c in range(len(cleanCols))}, inplace = True)
+		self.screenWidth = screenWidth
 
 	# Returns a static lines object representing the whole table
 	def buildLines(self, firstLineModifier = None, modDecorator = None, headerDecorator = None, addHeader = True):

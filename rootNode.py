@@ -4,8 +4,8 @@ from .printableLines import HLine, StaticLines
 from .expandableNode import ExpandableNode
 
 class RootNode(ExpandableNode):
-	def __init__(self, df, screenWidth):
-		super().__init__('root', df, [], screenWidth, None)
+	def __init__(self, df, countableCols, hiddenCols, screenWidth):
+		super().__init__('root', df, [], countableCols, hiddenCols, screenWidth, None)
 		self.expanded = True
 		self.lines = self.buildLines()
 

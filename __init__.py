@@ -6,7 +6,7 @@ import curses
 def printable(*args):
 	return ' '.join([str(arg) for arg in args])
 
-def _showTable(df, scr):
+def _showTable(df, countableCols, hiddenCols, scr):
 	w, h = curses.COLS, curses.LINES-2
 
 	win = curses.newwin(h, w)
@@ -22,7 +22,7 @@ def _showTable(df, scr):
 
 
 	Chars.initColors()
-	dataModel = DataModel(df, w)
+	dataModel = DataModel(df, countableCols, hiddenCols, w)
 
 	lines = []
 	while True:
@@ -67,5 +67,5 @@ def _showTable(df, scr):
 					break
 
 
-def showTable(df):
-	curses.wrapper(lambda scr: _showTable(df, scr))
+def showTable(df, countableCols = [], hiddenCols = []):
+	curses.wrapper(lambda scr: _showTable(df, set(countableCols), set(hiddenCols), scr))
