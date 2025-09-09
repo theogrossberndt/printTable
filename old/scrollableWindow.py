@@ -1,5 +1,4 @@
-from .line import Line
-from .hline import HLine
+from .buildLine import CursesStr
 import curses
 
 class ScrollableWindow:
@@ -13,17 +12,23 @@ class ScrollableWindow:
 		self.top = 0
 
 
-	def drawAll(self, lines, focusedY):
+	def _drawFlat(self, arr, y):
+		if isinstance(arr, CursesStr):
+			arr.draw(self.win, y)
+		else:
+			for el in arr:
+				self._drawFlat(el, y)
+
+
+	def drawAll(self, lines):
 		self.contentLen = len(lines)
 		for y in range(self.contentLen):
 			effY = y-self.top
 			if effY < 0 or effY > self.h:
 				continue
+
 			try:
-				if isinstance(lines[y], Line):
-					lines[y].draw(self.win, effY, focusedY == y)
-				elif isinstance(lines[y], HLine):
-					lines[y].draw(self.win, effY, isTop = y == 0, isBottom = y == self.contentLen-1)
+				self._drawFlat(lines[y], effY)
 			except curses.error:
 				pass
 			except Exception as e:

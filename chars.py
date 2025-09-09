@@ -67,13 +67,14 @@ class Chars:
 
 
 class SepClass:
-	def __init__(self, startWall, centerWall, endWall, space, tr = ' ', br = ' ', tl = ' ', bl = ' ', hTop = ' ', hBottom = ' ', eSpace = ' ', eCenter = Chars.WALL):
+	def __init__(self, startWall, centerWall, endWall, space, tr = ' ', br = ' ', tl = ' ', bl = ' ', hTop = ' ', hBottom = ' ', eSpace = ' ', eCenter = Chars.WALL, padding = 1):
 		self.startWall = startWall
 		self.centerWall = centerWall
 		self.endWall = endWall
 		self.space = space
 		self.eSpace = eSpace
 		self.eCenter = eCenter
+		self.padding = padding
 
 		self.tr = tr
 		self.br = br
@@ -82,10 +83,12 @@ class SepClass:
 		self.hTop = hTop
 		self.hBottom = hBottom
 
+
 	@staticmethod
 	def reversable(c1, c2, l1, l2):
 		return SepClass.reverseIdx(c1, c2, l1, l2, [True, True])
 #		return (c1 in l1 and c2 in l2) or (c1 in l2 or c2 in l1)
+
 
 	@staticmethod
 	def reverseIdx(c1, c2, l1, l2, out):
@@ -94,6 +97,7 @@ class SepClass:
 		if c2 in l1 and c1 in l2:
 			return out[1]
 		return False
+
 
 	def eSpaceLookup(self, topChar, bottomChar):
 		match = SepClass.reverseIdx(topChar, bottomChar, [self.startWall], [self.eSpace], [self.tr, self.br])
