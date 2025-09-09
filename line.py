@@ -20,6 +20,7 @@ class Line:
 		if not Line.colorsInitialized:
 			curses.init_pair(1, curses.COLOR_BLUE, curses.COLOR_BLACK)
 			curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)
+			curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)
 			Line.colorsInitialized = True
 
 
@@ -59,13 +60,16 @@ class Line:
 		# In the case of header lines, no cells are focusable
 		# In normal lines, all content cells are focusable
 		self.focusable = [] if self.lineType == Line.HEADER else self.contentCells
+		self.isFocusable = len(self.focusable) > 0
 
 
-	def draw(self, window: curses.window, y: int, isFocused: bool, sepClass: SepClass = None):
+	def draw(self, window: curses.window, y: int, isFocused: bool = None, sepClass: SepClass = None):
+		focused = isFocused if isFocused is not None else self.node.isFocused and self.isFocusable
+
 		# Useful for hline calculations
 		effSepClass = sepClass if sepClass is not None else self.sepClass
 
-		elDecorator = Line.getElementDecorator(self.lineType, isFocused)
+		elDecorator = Line.getElementDecorator(self.lineType, False)
 		fwDecorator = 0
 
 		startX: int = 0
@@ -77,8 +81,10 @@ class Line:
 		isFirst = True
 		for cell in self.contentCells:
 			start = effSepClass.startWall if isFirst else effSepClass.centerWall
+			effElDecorator = Line.getElementDecorator(self.lineType, focused) if isFirst else elDecorator
+
 			cellChars = _CellChars(start, effSepClass.space, effSepClass.padding)
-			startX = cell.draw(window, y, startX, elDecorator, fwDecorator, cellChars)
+			startX = cell.draw(window, y, startX, effElDecorator, fwDecorator, cellChars)
 			isFirst = False
 
 		# The line is responsible for drawing the last wall at the full width and space chars before it

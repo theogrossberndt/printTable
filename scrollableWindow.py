@@ -13,7 +13,7 @@ class ScrollableWindow:
 		self.top = 0
 
 
-	def drawAll(self, lines, focusedY):
+	def drawAll(self, lines):
 		self.contentLen = len(lines)
 		for y in range(self.contentLen):
 			effY = y-self.top
@@ -21,7 +21,7 @@ class ScrollableWindow:
 				continue
 			try:
 				if isinstance(lines[y], Line):
-					lines[y].draw(self.win, effY, focusedY == y)
+					lines[y].draw(self.win, effY)
 				elif isinstance(lines[y], HLine):
 					lines[y].draw(self.win, effY, isTop = y == 0, isBottom = y == self.contentLen-1)
 			except curses.error:

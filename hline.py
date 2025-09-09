@@ -30,6 +30,8 @@ class HLine:
 		self.nodes = nodes[:min(2, len(nodes))] if isinstance(nodes, list) else [nodes]
 		self.sepClass = sepClass if sepClass is not None else Chars.singleHLineSep
 		self.decorator = decorator
+		# Needed to play nice with Line objects
+		self.isFocusable = False
 
 	def merge(self, other):
 		# The shallowest node of each hline should be kept

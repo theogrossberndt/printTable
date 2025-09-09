@@ -24,16 +24,22 @@ def _showTable(df, countableCols, hiddenCols, scr):
 
 #	Chars.initColors()
 
-	focusLine = 0
+	focusLine = None
 	root = RootNode(df)
 
 	lines = []
 	while True:
 		# Rerender
 		lines = root.render()
+		if focusLine is None:
+			for c in range(len(lines)):
+				if lines[c].isFocusable:
+					focusLine = c
+					lines[c].node.isFocused = True
+					break
 
 		win.erase()
-		scrollWindow.drawAll(lines, focusLine)
+		scrollWindow.drawAll(lines)
 
 		ch = win.getch()
 
@@ -66,22 +72,25 @@ def _showTable(df, countableCols, hiddenCols, scr):
 			statusWin.refresh()
 			continue
 
-		# Wrap focusLine if it needs to be
-		if not focusAdder == 0:
-			newFocusLine = (focusLine + focusAdder + len(lines)) % len(lines)
+		if focusLine is not None:
+			# Wrap focusLine if it needs to be
+			if not focusAdder == 0:
+				lines[focusLine].node.isFocused = False
 
-			# If focuseLine has now fallen onto an unfocusable line, continue in the same direction until a focuable line is found
-			while True:
-				focusLine = lines[newFocusLine]
-				if isinstance(focusLine, Line) and len(focusLine.focusable) > 0:
-					break
+				newFocusLine = (focusLine + focusAdder + len(lines)) % len(lines)
 
-				newFocusLine += focusAdder + len(lines)
-				newFocusLine %= len(lines)
+				# If focuseLine has now fallen onto an unfocusable line, continue in the same direction until a focuable line is found
+				while True:
+					if lines[newFocusLine].isFocusable:
+						break
 
-			focusLine = newFocusLine
+					newFocusLine += focusAdder + len(lines)
+					newFocusLine %= len(lines)
 
-		scrollWindow.scrollIntoView(focusLine)
+				focusLine = newFocusLine
+				lines[focusLine].node.isFocused = True
+
+			scrollWindow.scrollIntoView(focusLine)
 
 
 def _showTableOld(df, countableCols, hiddenCols, scr):

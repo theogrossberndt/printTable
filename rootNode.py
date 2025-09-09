@@ -5,7 +5,7 @@ from .hline import HLine
 
 class RootNode(Node):
 	def __init__(self, inDf: pd.DataFrame):
-		super().__init__(inDf, '', [])
+		super().__init__(inDf, '', [], 1, None)
 
 		# Remove the first element of the first line (group name doesn't exist for the root)
 		self.firstLine = self.firstLine[1:]
