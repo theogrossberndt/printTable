@@ -63,7 +63,7 @@ class Line:
 		self.isFocusable = len(self.focusable) > 0
 
 
-	def draw(self, window: curses.window, y: int, isFocused: bool = None, sepClass: SepClass = None):
+	def draw(self, window: curses.window, y: int, isFocused: bool = None, sepClass: SepClass = None, x: int = None, fullWidth: bool = True):
 		focused = isFocused if isFocused is not None else self.node.isFocused and self.isFocusable
 
 		# Useful for hline calculations
@@ -72,26 +72,32 @@ class Line:
 		elDecorator = Line.getElementDecorator(self.lineType, False)
 		fwDecorator = 0
 
-		startX: int = 0
+		startX: int = x if x is not None else 0
+		maxY, maxX = window.getmaxyx()
 
 		for cell in self.emptyCells:
 			cellChars = _CellChars(effSepClass.eCenter, effSepClass.eSpace, effSepClass.padding)
-			startX = cell.draw(window, y, startX, elDecorator, fwDecorator, cellChars)
+			startX = cell.draw(window, y, startX, elDecorator, fwDecorator, cellChars, maxX)
+			if startX >= maxX:
+				break
 
 		isFirst = True
-		for cell in self.contentCells:
+		for c in range(len(self.contentCells)):
 			start = effSepClass.startWall if isFirst else effSepClass.centerWall
-			effElDecorator = Line.getElementDecorator(self.lineType, focused) if isFirst else elDecorator
+			effElDecorator = Line.getElementDecorator(self.lineType, focused and c == self.node.focusedIdx)
 
 			cellChars = _CellChars(start, effSepClass.space, effSepClass.padding)
-			startX = cell.draw(window, y, startX, effElDecorator, fwDecorator, cellChars)
+			startX = self.contentCells[c].draw(window, y, startX, effElDecorator, fwDecorator, cellChars, maxX)
 			isFirst = False
+			if startX >= maxX:
+				break
 
 		# The line is responsible for drawing the last wall at the full width and space chars before it
-		maxY, maxX = window.getmaxyx()
-		if len(effSepClass.space.strip()) > 0:
-			window.addstr(y, startX, (maxX - len(effSepClass.endWall) - startX) * effSepClass.space, fwDecorator)
-		window.addstr(y, maxX-len(effSepClass.endWall), effSepClass.endWall, fwDecorator)
+		if fullWidth:
+			if len(effSepClass.space.strip()) > 0 and startX < maxX:
+				window.addstr(y, startX, (maxX - len(effSepClass.endWall) - startX) * effSepClass.space, fwDecorator)
+			window.addstr(y, maxX-len(effSepClass.endWall), effSepClass.endWall, fwDecorator)
+		return startX
 
 
 class Cell:
@@ -100,28 +106,34 @@ class Cell:
 		self.colWidth = colWidth
 
 
-	def _drawStr(self, window: curses.window, y: int, startX: int, val: str, decorator: int):
+	def _drawStr(self, window: curses.window, y: int, startX: int, val: str, decorator: int, maxX: int, isContent: bool = False):
 		if len(val.strip()) == 0:
 			return startX + len(val)
 
-		window.addstr(y, startX, val, decorator)
+		if startX + len(val) < maxX:
+			window.addstr(y, startX, val, decorator)
+		else:
+			repVal = val[:maxX - startX]
+			if isContent:
+				repVal = repVal[:-3] + '...'
+			window.addstr(y, startX, repVal, decorator)
 		return startX + len(val)
 
 
-	def draw(self, window: curses.window, y: int, startX: int, elDecorator: int, fwDecorator: int, cellChars: _CellChars):
+	def draw(self, window: curses.window, y: int, startX: int, elDecorator: int, fwDecorator: int, cellChars: _CellChars, maxX: int):
 		# Draw the left separator
-		startX = self._drawStr(window, y, startX, cellChars.start, fwDecorator)
+		startX = self._drawStr(window, y, startX, cellChars.start, fwDecorator, maxX)
 
 		# Draw left padding
-		startX = self._drawStr(window, y, startX, cellChars.space * cellChars.padding, fwDecorator)
+		startX = self._drawStr(window, y, startX, cellChars.space * cellChars.padding, fwDecorator, maxX)
 
 		# Draw the content
-		startX = self._drawStr(window, y, startX, self.content, elDecorator | fwDecorator)
+		startX = self._drawStr(window, y, startX, self.content, elDecorator | fwDecorator, maxX, True)
 
 		# Draw the remaining space from the col
-		startX = self._drawStr(window, y, startX, cellChars.space * (self.colWidth - len(self.content)), elDecorator | fwDecorator)
+		startX = self._drawStr(window, y, startX, cellChars.space * (self.colWidth - len(self.content)), elDecorator | fwDecorator, maxX)
 
 		# Draw the right padding
-		startX = self._drawStr(window, y, startX, cellChars.space * cellChars.padding, fwDecorator)
+		startX = self._drawStr(window, y, startX, cellChars.space * cellChars.padding, fwDecorator, maxX)
 
 		return startX

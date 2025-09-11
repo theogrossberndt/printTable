@@ -1,11 +1,16 @@
 from .rootNode import RootNode
+from .node import Node
 from .chars import Chars
 from .scrollableWindow import ScrollableWindow
 from .line import Line
 import curses
+from .config import Config
+import pyperclip
+
 
 def printable(*args):
 	return ' '.join([str(arg) for arg in args])
+
 
 def _showTable(df, countableCols, hiddenCols, scr):
 	# Window initiation stuff
@@ -19,27 +24,38 @@ def _showTable(df, countableCols, hiddenCols, scr):
 	win.idlok(False)
 	statusWin.idcok(False)
 	statusWin.idlok(False)
+	curses.curs_set(0)
 
 	scrollWindow = ScrollableWindow(win)
 
-#	Chars.initColors()
-
 	focusLine = None
-	root = RootNode(df)
+	focusNode = None
+	root = RootNode(Config(df, countableCols, hiddenCols))
+#	lines = root.render()
+#	win.erase()
+#	scrollWindow.drawAll(lines)
+#	win.getch()
 
 	lines = []
 	while True:
 		# Rerender
 		lines = root.render()
-		if focusLine is None:
+		if focusNode is None:
 			for c in range(len(lines)):
 				if lines[c].isFocusable:
 					focusLine = c
-					lines[c].node.isFocused = True
+					focusNode = lines[c].node
+					focusNode.isFocused = True
+					focusNode.focusedIdx = 0
 					break
 
 		win.erase()
 		scrollWindow.drawAll(lines)
+
+#		if focusNode is not None:
+#			statusWin.erase()
+#			statusWin.addstr(0, 0, str(focusNode.focusedNode))
+#			statusWin.refresh()
 
 		ch = win.getch()
 
@@ -52,6 +68,10 @@ def _showTable(df, countableCols, hiddenCols, scr):
 			focusAdder = -1
 		elif ch == curses.KEY_DOWN:
 			focusAdder = 1
+		elif ch == curses.KEY_LEFT and focusNode is not None:
+			focusNode.handleKey(Node.FOCUS_LEFT)
+		elif ch == curses.KEY_RIGHT and focusNode is not None:
+			focusNode.handleKey(Node.FOCUS_RIGHT)
 		elif ch == curses.KEY_SR:
 			scrollWindow.scrollUp()
 		elif ch == curses.KEY_SF:
@@ -60,22 +80,25 @@ def _showTable(df, countableCols, hiddenCols, scr):
 			scrollWindow.scrollDown(20)
 		elif ch == curses.KEY_PPAGE:
 			scrollWindow.scrollUp(20)
+		elif ch == ord('c'):
+			pyperclip.copy(str(focusNode.focusedNode))
+		elif ch == ord('h') and focusNode is not None:
+			focusNode.handleKey(Node.HIDE)
+			focusNode = focusNode.focusedNode.parent
+			focusNode.isFocused = True
 		elif ch == curses.KEY_ENTER or ch == ord('\n') or ch == ord('\r') or ch == ord('o'):
-			statusWin.erase()
-			statusWin.addstr(0, 0, printable('Click on', lines[focusLine].node))
-			statusWin.refresh()
-			continue
-#			dataModel.click()
+			if focusNode is not None:
+				focusNode.handleKey(Node.CLICK)
 		else:
 			statusWin.erase()
 			statusWin.addstr(0, 0, printable('Unknown input:', ch))
 			statusWin.refresh()
 			continue
 
-		if focusLine is not None:
+		if focusNode is not None:
 			# Wrap focusLine if it needs to be
 			if not focusAdder == 0:
-				lines[focusLine].node.isFocused = False
+				focusNode.isFocused = False
 
 				newFocusLine = (focusLine + focusAdder + len(lines)) % len(lines)
 
@@ -88,7 +111,8 @@ def _showTable(df, countableCols, hiddenCols, scr):
 					newFocusLine %= len(lines)
 
 				focusLine = newFocusLine
-				lines[focusLine].node.isFocused = True
+				focusNode = lines[focusLine].node
+				focusNode.isFocused = True
 
 			scrollWindow.scrollIntoView(focusLine)
 

@@ -2,17 +2,23 @@ import pandas as pd
 from .node import Node
 from .line import Line
 from .hline import HLine
+from .config import Config
 
 class RootNode(Node):
-	def __init__(self, inDf: pd.DataFrame):
-		super().__init__(inDf, '', [], 1, None)
-
-		# Remove the first element of the first line (group name doesn't exist for the root)
-		self.firstLine = self.firstLine[1:]
+	def __init__(self, config: Config):
+		super().__init__(config, 'root', [], 1, None)
+		self.isExpanded = True
+		self.focusedNode = self.children[0]
+		self.focusedIdx = 0
 
 
 	def render(self):
+		# First rumpelstiltskin all children
+		self.rumpelstiltskin()
+
+		# Then do the default rendering
 		inLines = super().render()
+#		return inLines
 
 		# Merge neighboring hlines
 		lines = []
@@ -33,3 +39,19 @@ class RootNode(Node):
 			lines.append(pendingHLine)
 
 		return lines
+
+	# Root node focus is special, because the focused idx cannot be 0
+	def handleKey(self, keyCode):
+		# Otherwise, left/right means focusing on the parent/child of the focused node
+		if keyCode == Node.FOCUS_LEFT:
+			if self.focusedNode.parent is not None and self.focusedNode.parent.depth > 1:
+				self.focusedNode = self.focusedNode.parent
+				self.focusedIdx -= 1
+		if keyCode == Node.FOCUS_RIGHT:
+			if len(self.focusedNode.children) > 0:
+				self.focusedNode = self.focusedNode.children[0]
+				self.focusedIdx += 1
+
+		# If we have clicked and the focusedNode can collapse, flip its expansion
+		if keyCode == Node.CLICK and self.focusedNode.canCollapse:
+			self.focusedNode.isExpanded = not self.focusedNode.isExpanded
