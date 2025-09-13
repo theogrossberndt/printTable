@@ -1,6 +1,6 @@
 import curses
 from .chars import Chars, SepClass
-from .line import Line
+from .lineBuilder import LineBuilder
 
 class DummyWindow:
 	def __init__(self, window):
@@ -66,15 +66,15 @@ class HLine:
 
 
 		if topNode is not None:
-			topLine = Line(['' for _ in range(topNode.bottomContentLen)], topNode, sepClass = sep, colWidths = topNode.bottomColWidths)
-			topLine.draw(dummyWin, 0, False)
+			topLine = LineBuilder(topNode.bottomColWidths, ['' for _ in range(topNode.bottomContentLen)], sepClass = sep)
+			topLine.draw(dummyWin, 0)
 			topStr = dummyWin.steal()
 		else:
 			topStr = ''
 
 		if bottomNode is not None:
-			bottomLine = Line(['' for _ in range(bottomNode.topContentLen)], bottomNode, sepClass = sep, colWidths = bottomNode.topColWidths)
-			bottomLine.draw(dummyWin, 0, False)
+			bottomLine = LineBuilder(bottomNode.topColWidths, ['' for _ in range(bottomNode.topContentLen)], sepClass = sep)
+			bottomLine.draw(dummyWin, 0)
 			bottomStr = dummyWin.steal()
 		else:
 			bottomStr = ''

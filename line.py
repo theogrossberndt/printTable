@@ -34,7 +34,6 @@ class Line:
 
 		return focuser
 
-
 	def __init__(self, content: List[str], node, lineType: int = None, sepClass: SepClass = None, colWidths: List[int] = None):
 		self.content: List[str] = content
 		self.node = node

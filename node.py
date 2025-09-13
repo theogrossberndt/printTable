@@ -1,6 +1,6 @@
 import pandas as pd
 from .hline import HLine
-from .line import Line
+from .lineBuilder import LineBuilder
 from .chars import Chars
 from typing import List
 import curses
@@ -54,40 +54,68 @@ class Node:
 		self.canCollapse = len(self.children) > 1
 		self.isExpanded = False
 
-		self.focusedNode = self
-		self.focusedIdx = 0
+		self.focusedChildIdx = 0
 		self.isFocused = False
 		self.hidden = False
+
+
+	# Focus down always focuses on the parent's next child
+	# If the parent has no remaining children, focus down on the parent
+	# Parent will NOT be None (root is always there - and RootNode overrides this for end-of-table behavior)
+	def focusDown(self):
+		myChildIdx = self.parent.effChildren.index(self)
+		if myChildIdx == len(self.parent.effChildren)-1:
+			return self.parent.focusDown()
+		return self.parent.effChildren[myChildIdx+1]
+
+	# Same concept as focus up, but in reverse
+	def focusUp(self):
+		myChildIdx = self.parent.effChildren.index(self)
+		if myChildIdx == 0:
+			return self.parent.focusUp()
+		return self.parent.effChildren[myChildIdx-1]
+
+	# Focus on the parent as long as the root node would not be focused
+	def focusLeft(self):
+		if self.parent.parent is not None:
+			return self.parent
+		return self
+
+	# Shift focus to a certain child
+	# If we have shifted left out of here before, remember the index
+	def focusRight(self):
+		if len(self.children) > 0:
+			return self.children[0]
+		return self
+
+	def focusOut(self):
+		self.isFocused = False
+
+	def focusIn(self):
+		self.isFocused = True
 
 
 	# Focus happens on a first line, which means that if this node is focused, it might be this node or any
 	# of the nodes it rumpelstiltskin'd recursively
 	# Consequentially, a node needs to handle focus left/right, and click
 	def handleKey(self, keyCode):
-		# If the node is not expanded and can collapse, focus left/right can be ignored as only the first column (me) can be focused
-		if not self.isExpanded and self.canCollapse:
-			self.focusedNode = self
-			self.focusedIdx = 0
-			if keyCode == Node.FOCUS_LEFT or keyCode == Node.FOCUS_RIGHT:
-				return
-
-		# Otherwise, left/right means focusing on the parent/child of the focused node
-		if keyCode == Node.FOCUS_LEFT:
-			# DONT LET ROOT BECOME FOCUSED
-			if self.focusedNode.parent is not None and self.focusedNode.parent.depth > 1:
-				self.focusedNode = self.focusedNode.parent
-				self.focusedIdx -= 1
-		if keyCode == Node.FOCUS_RIGHT:
-			if len(self.focusedNode.children) > 0:
-				self.focusedNode = self.focusedNode.children[0]
-				self.focusedIdx += 1
-
-		# If we have clicked and the focusedNode can collapse, flip its expansion
-		if keyCode == Node.CLICK and self.focusedNode.canCollapse:
-			self.focusedNode.isExpanded = not self.focusedNode.isExpanded
+		if keyCode == Node.CLICK and self.canCollapse:
+			self.isExpanded = not self.isExpanded
 
 		if keyCode == Node.HIDE:
-			self.focusedNode.hidden = True
+			self.hidden = True
+
+
+	# After building all children, convert leaf-able nodes into LeafNodes
+	# This needs to be done after everything is built because we want leaf nodes to be as shallow
+	# as possible to avoid merging, so this is not called from the constructor
+	def _leafifyChildren(self):
+		for c in range(len(self.children)):
+			if LeafNode.isLeaf(self.children[c]):
+				leafChild = LeafNode(self.children[c])
+				self.children[c] = leafChild
+			else:
+				self.children[c]._leafifyChildren()
 
 
 	def _buildChildren(self, df: pd.DataFrame):
@@ -129,9 +157,32 @@ class Node:
 	# Also resolve the current top and bottom col widths for each node
 	# Then, absorb the header and content lines from the first child, and the top/bottom col widths from the relevant children
 	def rumpelstiltskin(self):
-		nonHiddenChildren = [child for child in self.children if not child.hidden]
+		self.effChildren = []
+
+		# leaf nodes must be remerged every render because leafs might be hidden between renders
+		pendingLeafNode = None
+		for child in self.children:
+			if isinstance(child, LeafNode):
+				if pendingLeafNode is None:
+					pendingLeafNode = child
+				# Leaf nodes can only be merged if their headers match
+				elif pendingLeafNode.baseHeaderLine == child.baseHeaderLine:
+					pendingLeafNode = pendingLeafNode.merge(child)
+				# Otherwise, pendingLeafNode is done, add it and child takes its place
+				else:
+					self.effChildren.append(pendingLeafNode)
+					pendingLeafNode = child
+#				self.effChildren.append(child)
+			elif not child.hidden:
+				if pendingLeafNode is not None:
+					self.effChildren.append(pendingLeafNode)
+					pendingLeafNode = None
+				self.effChildren.append(child)
+		if pendingLeafNode is not None:
+			self.effChildren.append(pendingLeafNode)
+
 		# Leaf nodes are a special case, as they have nothing to steal and no expansion possibility
-		if len(nonHiddenChildren) == 0:
+		if len(self.effChildren) == 0:
 			self.headerLine = []
 			self.contentLine = [self.myContent]
 
@@ -140,7 +191,7 @@ class Node:
 
 			self.topContentLen = 1
 			self.bottomContentLen = 1
-			return
+			return True
 
 		# If this is an unexpanded node and it is colapsible (more than 1 child), then it terminates here
 		if not self.isExpanded and self.canCollapse:
@@ -156,11 +207,11 @@ class Node:
 
 			self.topContentLen = 2
 			self.bottomContentLen = 2
-			return
+			return False
 
 
 		# Otherwise, allow each child to reslove its own stealable content
-		for child in nonHiddenChildren:
+		for child in self.effChildren:
 			child.rumpelstiltskin()
 
 		# After resolving all children, promote headers upwards when possible
@@ -169,7 +220,10 @@ class Node:
 #		for c in range(len(nonHiddenChildren)-1, 0, -1):
 #			bottomChild = nonHiddenChildren[c]
 #			topChild = nonHiddenChildren[c-1]
-#			if bottomChild.headerLine == topChild.headerLine:
+#			# If headers match, delete the bottom child's headerLine and sync col widths (based on topColWidths)
+#			if isinstance(topChild, LeafNode) and isinstance(bottomChild, LeafNode) and topChild.headerLine == bottomChild.headerLine:
+#				for c in range(len(topChild.topColWidths)):
+#					colWidth = max(topChild.topColWidths[c], bottomChild.topColWidths[c])
 #				bottomChild.headerLine = []
 
 		# Generate my own header and content lines
@@ -177,11 +231,12 @@ class Node:
 		self.contentLine = [Chars.UP_ARROW + ' ' + self.myContent] if self.canCollapse else [self.myContent]
 
 		# And perform the thievery
-		firstChild = nonHiddenChildren[0]
-		lastChild = nonHiddenChildren[-1]
+		firstChild = self.effChildren[0]
+		lastChild = self.effChildren[-1]
 
 		self.headerLine.extend(firstChild.headerLine)
 		firstChild.headerLine = []
+
 		self.contentLine.extend(firstChild.contentLine)
 		firstChild.contentLine = []
 
@@ -190,16 +245,17 @@ class Node:
 
 		self.topContentLen = firstChild.topContentLen+1
 		self.bottomContentLen = lastChild.bottomContentLen+1
+		return False
 
 
 	def render(self):
-		renderedLines: List[Line] = []
+		renderedLines: List[LineBuilder] = []
 
 		# Always render a header and content line if available
 		if self.headerLine is not None and len(self.headerLine) > 0:
-			renderedLines.append(Line(self.headerLine, self, lineType = Line.HEADER, colWidths = self.topColWidths))
+			renderedLines.append(LineBuilder(self.topColWidths, self.headerLine, elDecorators = LineBuilder.HEADER))
 		if self.contentLine is not None and len(self.contentLine) > 0:
-			renderedLines.append(Line(self.contentLine, self, colWidths = self.topColWidths))
+			renderedLines.append(LineBuilder(self.topColWidths, self.contentLine, elDecorators = LineBuilder.NORMAL))
 
 		# Only prepend an hline before the child starts if the first line was not absorbed
 		# Otherwise there will be a line between the first and second lines weirdly
@@ -208,9 +264,8 @@ class Node:
 
 		# If I have children and am expanded, or am uncolapsable, render the children
 		if not self.canCollapse or self.isExpanded:
-			for child in self.children:
-				if not child.hidden:
-					renderedLines.extend(child.render())
+			for child in self.effChildren:
+				renderedLines.extend(child.render())
 
 		renderedLines.append(HLine(self))
 		return renderedLines
@@ -218,3 +273,116 @@ class Node:
 
 	def __str__(self):
 		return self.myContent
+
+
+# A leaf node is a node that cannot be collapsed, with no children that can be collapsed
+class LeafNode(Node):
+	@staticmethod
+	def isLeaf(node: Node) -> bool:
+		firstChild = None
+		for child in node.children:
+			if child.hidden:
+				continue
+			# More than one child is a collapsible node
+			if firstChild is not None:
+				return False
+			firstChild = child
+		# No children is definitely a leaf
+		if firstChild is None:
+			return True
+		# Otherwise, traverse down to make sure all desendants are also leaves
+		return LeafNode.isLeaf(firstChild)
+
+
+	# Receives a node that will be converted into a leaf node via condensing children
+	# A leaf node is a single line of data with potentially multiple columns
+	# To stay rumpelstiltskin-able, it needs to expose:
+	#	topContentLen, bottomContentLen
+	#	topColWidths, bottomColWidths
+	#	contentLine, headerLine
+	def __init__(self, node: Node, baseHeaderLine = None, baseContentLines = None, colWidths = None, parent = None, hidden = None, isFocused = None, depth = None):
+		if node is not None:
+			self.baseHeaderLine = []
+			self.baseContentLines: List[List[str]] = [[]]
+
+			deepestChild = node
+			while len(deepestChild.children) > 0:
+				self.baseHeaderLine.append(deepestChild.childColName)
+				self.baseContentLines[0].append(deepestChild.myContent)
+				deepestChild = deepestChild.children[0]
+
+			self.baseContentLines[0].append(deepestChild.myContent)
+
+			self.colWidths = deepestChild.colWidths
+
+			self.parent = node.parent
+			self.hidden = node.hidden
+
+			self.isFocused = node.isFocused
+
+			self.depth = node.depth
+		else:
+			self.baseHeaderLine = baseHeaderLine
+			self.baseContentLines = baseContentLines
+			self.colWidths = colWidths
+			self.parent = parent
+			self.hidden = hidden
+			self.isFocused = isFocused
+			self.depth = depth
+
+		self.children = []
+		self.canCollapse = False
+		self.isExpanded = False
+		self.isMerged = False
+
+
+	def merge(self, other):
+		baseContentLines = [*self.baseContentLines, *other.baseContentLines]
+		colWidths = [max(self.colWidths[c], other.colWidths[c]) for c in range(len(self.colWidths))]
+
+		newNode = LeafNode(None, self.baseHeaderLine, baseContentLines, colWidths, self.parent, self.hidden, self.isFocused, self.depth)
+		return newNode
+
+	# Just copy the base header line into the headerLine (so stealing doesnt effect initialization)
+	# and do the same for the content line
+	def rumpelstiltskin(self):
+		self.headerLine = [*self.baseHeaderLine]
+
+		self.contentLine = self.baseContentLines[0]
+		if len(self.baseContentLines) > 1:
+			self.additionalContentLines: List[List[str]] = self.baseContentLines[1:]
+		else:
+			self.additionalContentLines = []
+
+		self.topColWidths = [*self.colWidths]
+		self.bottomColWidths = [*self.colWidths]
+
+		self.topContentLen = len(self.contentLine)
+		self.bottomContentLen = len(self.contentLine)
+
+		return
+
+	def render(self):
+		renderedLines: List[LineBuilder] = []
+
+		# Always render a header and content line if available
+		if self.headerLine is not None and len(self.headerLine) > 0:
+			renderedLines.append(LineBuilder(self.topColWidths, self.headerLine, elDecorators = LineBuilder.HEADER))
+		if self.contentLine is not None and len(self.contentLine) > 0:
+			renderedLines.append(LineBuilder(self.topColWidths, self.contentLine, elDecorators = LineBuilder.NORMAL))
+
+		# This will only be the case if this node was NOT rumpelstilskin'd
+		if len(renderedLines) > 0:
+			renderedLines.insert(0, HLine(self))
+
+		for contentLine in self.additionalContentLines:
+			if contentLine is not None and len(contentLine) > 0:
+				renderedLines.append(LineBuilder(self.topColWidths, contentLine, elDecorators = LineBuilder.NORMAL))
+
+		# Only prepend an hline before the child starts if the first line was not absorbed
+		# Otherwise there will be a line between the first and second lines weirdly
+		renderedLines.append(HLine(self))
+		return renderedLines
+
+	def __str__(self):
+		return self.baseContentLines[0][0]

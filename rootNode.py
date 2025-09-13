@@ -1,6 +1,6 @@
 import pandas as pd
 from .node import Node
-from .line import Line
+from .lineBuilder import LineBuilder
 from .hline import HLine
 from .config import Config
 
@@ -10,6 +10,18 @@ class RootNode(Node):
 		self.isExpanded = True
 		self.focusedNode = self.children[0]
 		self.focusedIdx = 0
+
+		self._leafifyChildren()
+
+	# This should only be called if the first child recursively calls it without knowing
+	# In that case, return the top node
+	def focusUp(self):
+		return self.children[0]
+
+	# Same thing as focus up, but with the bottom child
+	# Return it
+	def focusDown(self):
+		return self.children[-1]
 
 
 	def render(self):
@@ -29,7 +41,7 @@ class RootNode(Node):
 					pendingHLine = line
 				else:
 					pendingHLine = pendingHLine.merge(line)
-			elif isinstance(line, Line):
+			elif isinstance(line, LineBuilder):
 				if pendingHLine is not None:
 					lines.append(pendingHLine)
 					pendingHLine = None

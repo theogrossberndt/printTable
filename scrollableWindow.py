@@ -1,4 +1,4 @@
-from .line import Line
+from .lineBuilder import LineBuilder
 from .hline import HLine
 import curses
 
@@ -20,7 +20,7 @@ class ScrollableWindow:
 			if effY < 0 or effY > self.h:
 				continue
 			try:
-				if isinstance(lines[y], Line):
+				if isinstance(lines[y], LineBuilder):
 					lines[y].draw(self.win, effY)
 				elif isinstance(lines[y], HLine):
 					lines[y].draw(self.win, effY, isTop = y == 0, isBottom = y == self.contentLen-1)

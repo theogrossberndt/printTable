@@ -2,7 +2,6 @@ from .rootNode import RootNode
 from .node import Node
 from .chars import Chars
 from .scrollableWindow import ScrollableWindow
-from .line import Line
 import curses
 from .config import Config
 import pyperclip
@@ -28,50 +27,38 @@ def _showTable(df, countableCols, hiddenCols, scr):
 
 	scrollWindow = ScrollableWindow(win)
 
-	focusLine = None
-	focusNode = None
 	root = RootNode(Config(df, countableCols, hiddenCols))
-#	lines = root.render()
-#	win.erase()
-#	scrollWindow.drawAll(lines)
-#	win.getch()
+	focusNode = root.children[0]
 
 	lines = []
 	while True:
 		# Rerender
 		lines = root.render()
-		if focusNode is None:
-			for c in range(len(lines)):
-				if lines[c].isFocusable:
-					focusLine = c
-					focusNode = lines[c].node
-					focusNode.isFocused = True
-					focusNode.focusedIdx = 0
-					break
 
 		win.erase()
 		scrollWindow.drawAll(lines)
 
-#		if focusNode is not None:
-#			statusWin.erase()
-#			statusWin.addstr(0, 0, str(focusNode.focusedNode))
-#			statusWin.refresh()
+		statusWin.erase()
+		statusWin.addstr(0, 0, str(focusNode))
+		statusWin.refresh()
 
 		ch = win.getch()
 
 		if ch == ord('q'):
 			break
 
-		# Action
-		focusAdder = 0
+		# Focus management keys
+		focusMethod = None
 		if ch == curses.KEY_UP:
-			focusAdder = -1
+			focusMethod = focusNode.focusUp
 		elif ch == curses.KEY_DOWN:
-			focusAdder = 1
-		elif ch == curses.KEY_LEFT and focusNode is not None:
-			focusNode.handleKey(Node.FOCUS_LEFT)
-		elif ch == curses.KEY_RIGHT and focusNode is not None:
-			focusNode.handleKey(Node.FOCUS_RIGHT)
+			focusMethod = focusNode.focusDown
+		elif ch == curses.KEY_LEFT:
+			focusMethod = focusNode.focusLeft
+		elif ch == curses.KEY_RIGHT:
+			focusMethod = focusNode.focusRight
+
+		# Scroll management keys
 		elif ch == curses.KEY_SR:
 			scrollWindow.scrollUp()
 		elif ch == curses.KEY_SF:
@@ -80,41 +67,29 @@ def _showTable(df, countableCols, hiddenCols, scr):
 			scrollWindow.scrollDown(20)
 		elif ch == curses.KEY_PPAGE:
 			scrollWindow.scrollUp(20)
+
 		elif ch == ord('c'):
-			pyperclip.copy(str(focusNode.focusedNode))
-		elif ch == ord('h') and focusNode is not None:
+			pyperclip.copy(str(focusNode))
+
+		elif ch == ord('h'):
 			focusNode.handleKey(Node.HIDE)
-			focusNode = focusNode.focusedNode.parent
-			focusNode.isFocused = True
+
+			focusNode.focusOut()
+			focusNode = focusNode.parent
+			focusNode.focusIn()
 		elif ch == curses.KEY_ENTER or ch == ord('\n') or ch == ord('\r') or ch == ord('o'):
-			if focusNode is not None:
-				focusNode.handleKey(Node.CLICK)
+			focusNode.handleKey(Node.CLICK)
 		else:
 			statusWin.erase()
 			statusWin.addstr(0, 0, printable('Unknown input:', ch))
 			statusWin.refresh()
 			continue
 
-		if focusNode is not None:
-			# Wrap focusLine if it needs to be
-			if not focusAdder == 0:
-				focusNode.isFocused = False
-
-				newFocusLine = (focusLine + focusAdder + len(lines)) % len(lines)
-
-				# If focuseLine has now fallen onto an unfocusable line, continue in the same direction until a focuable line is found
-				while True:
-					if lines[newFocusLine].isFocusable:
-						break
-
-					newFocusLine += focusAdder + len(lines)
-					newFocusLine %= len(lines)
-
-				focusLine = newFocusLine
-				focusNode = lines[focusLine].node
-				focusNode.isFocused = True
-
-			scrollWindow.scrollIntoView(focusLine)
+		if focusMethod is not None:
+			focusNode.focusOut()
+			focusNode = focusMethod()
+			focusNode.focusIn()
+#			scrollWindow.scrollIntoView(focusNode)
 
 
 def _showTableOld(df, countableCols, hiddenCols, scr):
