@@ -4,6 +4,7 @@ from .chars import Chars
 from .scrollableWindow import ScrollableWindow
 import curses
 from .config import Config
+from .lineBuilder import LineBuilder
 import pyperclip
 
 
@@ -89,7 +90,10 @@ def _showTable(df, countableCols, hiddenCols, scr):
 			focusNode.focusOut()
 			focusNode = focusMethod()
 			focusNode.focusIn()
-#			scrollWindow.scrollIntoView(focusNode)
+			# Find the relevant line number
+			for y in range(len(lines)):
+				if isinstance(lines[y], LineBuilder) and lines[y].parent == focusNode:
+					scrollWindow.scrollIntoView(y)
 
 
 def _showTableOld(df, countableCols, hiddenCols, scr):

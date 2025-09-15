@@ -11,8 +11,8 @@ class _CellChars:
 class LineBuilder:
 	NORMAL: int = 0
 	FOCUSED: int = 1
-	HEADER: int = 1
-	GROUP: int = 2
+	HEADER: int = 2
+	GROUP: int = 3
 
 	colorsInitialized: bool = False
 
@@ -21,7 +21,7 @@ class LineBuilder:
 		if not LineBuilder.colorsInitialized:
 			curses.init_pair(1, curses.COLOR_BLUE, curses.COLOR_BLACK)
 			curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)
-			curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+			curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)
 			LineBuilder.colorsInitialized = True
 
 		if lineType == LineBuilder.HEADER:
@@ -31,14 +31,16 @@ class LineBuilder:
 			return curses.color_pair(2) | curses.A_BOLD
 
 		if lineType == LineBuilder.FOCUSED:
-			return curses.color_pair(2) | curses.A_REVERSE | curses.A_ITALIC
+			return curses.color_pair(2) | curses.A_REVERSE | curses.A_BOLD
+#			return curses.color_pair(2) | curses.A_REVERSE
 
 		return curses.color_pair(2)
 
 
-	def __init__(self, colWidths: List[int], content: List[str] = [], sepClass: SepClass = None, elDecorators: Union[int, List[int]] = None):
+	def __init__(self, colWidths: List[int], content: List[str], parent, sepClass: SepClass = None, elDecorators: Union[int, List[int]] = None):
 		self.colWidths = colWidths
 		self.content = []
+		self.parent = parent
 		self.elDecorators = []
 		self.sepClass = sepClass if sepClass is not None else Chars.contentSep
 

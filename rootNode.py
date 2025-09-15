@@ -7,6 +7,7 @@ from .config import Config
 class RootNode(Node):
 	def __init__(self, config: Config):
 		super().__init__(config, 'root', [], 1, None)
+
 		self.isExpanded = True
 		self.focusedNode = self.children[0]
 		self.focusedIdx = 0
@@ -25,10 +26,6 @@ class RootNode(Node):
 
 
 	def render(self):
-		# First rumpelstiltskin all children
-		self.rumpelstiltskin()
-
-		# Then do the default rendering
 		inLines = super().render()
 #		return inLines
 

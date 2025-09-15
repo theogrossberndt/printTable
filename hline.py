@@ -66,14 +66,14 @@ class HLine:
 
 
 		if topNode is not None:
-			topLine = LineBuilder(topNode.bottomColWidths, ['' for _ in range(topNode.bottomContentLen)], sepClass = sep)
+			topLine = LineBuilder(topNode.getBottomColWidths(), ['' for _ in range(topNode.getBottomContentLen())], None, sepClass = sep)
 			topLine.draw(dummyWin, 0)
 			topStr = dummyWin.steal()
 		else:
 			topStr = ''
 
 		if bottomNode is not None:
-			bottomLine = LineBuilder(bottomNode.topColWidths, ['' for _ in range(bottomNode.topContentLen)], sepClass = sep)
+			bottomLine = LineBuilder(bottomNode.getTopColWidths(), ['' for _ in range(bottomNode.getTopContentLen())], None, sepClass = sep)
 			bottomLine.draw(dummyWin, 0)
 			bottomStr = dummyWin.steal()
 		else:
