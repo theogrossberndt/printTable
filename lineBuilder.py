@@ -40,7 +40,7 @@ class LineBuilder:
 	def __init__(self, colWidths: List[int], content: List[str], parent, sepClass: SepClass = None, elDecorators: Union[int, List[int]] = None):
 		self.colWidths = colWidths
 		self.content = []
-		self.parent = parent
+		self.parents = [parent]
 		self.elDecorators = []
 		self.sepClass = sepClass if sepClass is not None else Chars.contentSep
 
@@ -54,12 +54,14 @@ class LineBuilder:
 			self.insertContentCell(iContent[c], iElDecorators[c])
 
 
-	def insertContentCell(self, content: str, elDecorator: int):
+	def insertContentCell(self, content: str, elDecorator: int, parent = None):
 		if len(self.content) == len(self.colWidths):
 			return
 
 		self.content.insert(0, content)
 		self.elDecorators.insert(0, elDecorator)
+		if parent is not None:
+			self.parents.append(parent)
 
 
 	def draw(self, window: curses.window, y: int, sepClass: SepClass = None, fullWidth: bool = True):

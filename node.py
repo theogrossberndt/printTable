@@ -64,37 +64,52 @@ class Node:
 	# Focus down always focuses on the parent's next child
 	# If the parent has no remaining children, focus down on the parent
 	# Parent will NOT be None (root is always there - and RootNode overrides this for end-of-table behavior)
-	def focusDown(self):
+	def focusDown(self, node = None):
+		node = node if node is not None else self
 		myChildIdx = self.parent.effChildren.index(self)
 		if myChildIdx == len(self.parent.effChildren)-1:
-			return self.parent.focusDown()
-		return self.parent.effChildren[myChildIdx+1]
+			return self.parent.focusDown(node)
+
+		depth = node.focusOut()
+		focusNode = self.parent.effChildren[myChildIdx+1]
+		return focusNode.focusIn(depth, idx = 0)
+
 
 	# Same concept as focus up, but in reverse
-	def focusUp(self):
+	def focusUp(self, node = None):
+		node = node if node is not None else self
 		myChildIdx = self.parent.effChildren.index(self)
 		if myChildIdx == 0:
-			return self.parent.focusUp()
-		return self.parent.effChildren[myChildIdx-1]
+			return self.parent.focusUp(node)
+		depth = node.focusOut()
+		focusNode = self.parent.effChildren[myChildIdx-1]
+		return focusNode.focusIn(depth, idx = -1)
 
 	# Focus on the parent as long as the root node would not be focused
 	def focusLeft(self):
 		if self.parent.parent is not None:
-			return self.parent
+			self.focusOut()
+			return self.parent.focusIn()
 		return self
 
 	# Shift focus to a certain child
 	# If we have shifted left out of here before, remember the index
 	def focusRight(self):
 		if len(self.effChildren) > 0 and (self.isExpanded or len(self.effChildren) == 1):
-			return self.effChildren[0]
+			self.focusOut()
+			return self.effChildren[0].focusIn()
 		return self
 
 	def focusOut(self):
 		self.isFocused = False
+		return self.depth
 
-	def focusIn(self):
+	def focusIn(self, depth = -1, idx = 0):
+		# If we want to focus in deeper, attempt to focus on first child if expanded
+		if (not self.canCollapse or self.isExpanded) and depth > self.depth and len(self.effChildren) > 0:
+			return self.effChildren[idx].focusIn(depth)
 		self.isFocused = True
+		return self
 
 
 	# Focus happens on a first line, which means that if this node is focused, it might be this node or any
@@ -107,7 +122,7 @@ class Node:
 		if keyCode == Node.HIDE:
 			self.hidden = True
 			if self.parent is not None:
-				self.parent.childChanged = True
+				self.parent.childrenChanged = True
 
 
 	# After building all children, convert leaf-able nodes into leaf nodes
@@ -167,27 +182,51 @@ class Node:
 		self.effChildren = []
 
 		# leaf nodes must be remerged every render because leafs might be hidden between renders
+		leafClumps = [[]]
 		pendingLeafNode = None
 		for child in self.children:
 			if child.hidden:
 				continue
 			if isinstance(child, LeafNode):
-				if pendingLeafNode is None:
-					pendingLeafNode = child
+				child.headerHidden = False
+				self.effChildren.append(child)
+				if len(leafClumps[-1]) == 0:
+					leafClumps[-1].append(child)
+#				if pendingLeafNode is None:
+#					pendingLeafNode = child
 				# Leaf nodes can only be merged if their headers match
-				elif pendingLeafNode.baseHeaderLine == child.baseHeaderLine:
-					pendingLeafNode = pendingLeafNode.merge(child)
+				elif leafClumps[-1][0].baseHeaderLine == child.baseHeaderLine:
+					child.headerHidden = True
+					leafClumps[-1].append(child)
+#					pendingLeafNode = pendingLeafNode.merge(child)
 				# Otherwise, pendingLeafNode is done, add it and child takes its place
 				else:
-					self.effChildren.append(pendingLeafNode)
-					pendingLeafNode = child
+#					self.effChildren.append(pendingLeafNode)
+#					pendingLeafNode = child
+					leafClumps.append([child])
 			else:
-				if pendingLeafNode is not None:
-					self.effChildren.append(pendingLeafNode)
-					pendingLeafNode = None
+				if len(leafClumps[-1]) > 0:
+#				if pendingLeafNode is not None:
+#					self.effChildren.append(pendingLeafNode)
+#					pendingLeafNode = None
+					leafClumps.append([])
 				self.effChildren.append(child)
-		if pendingLeafNode is not None:
-			self.effChildren.append(pendingLeafNode)
+#		if pendingLeafNode is not None:
+#			self.effChildren.append(pendingLeafNode)
+
+		# Standardize leaf clump col widths
+		for leafClump in leafClumps:
+			if len(leafClump) == 0:
+				continue
+
+			colWidths = []
+			for colC in range(len(leafClump[0].colWidths)):
+				colWidths.append(max([leaf.colWidths[colC] for leaf in leafClump]))
+
+			for leaf in leafClump:
+				leaf.effColWidths = colWidths
+
+		self.canCollapse = len(self.effChildren) != 1
 
 
 	def render(self):
@@ -212,20 +251,48 @@ class Node:
 
 		# If there are rendered lines (which there ALWAYS should be really), hyjack the first header and content lines of the children
 		if len(renderedLines) > 0:
-			# Find the first non hline
-			c = 0
-			while c < len(renderedLines) and isinstance(renderedLines[c], HLine):
-				c += 1
+			# Find the first header line
+			headerAdded = False
+			contentAdded = False
+			for line in renderedLines:
+				if headerAdded and contentAdded:
+					break
+				if not isinstance(line, LineBuilder):
+					continue
 
-			renderedLines[c].insertContentCell(self.childColName, LineBuilder.HEADER)
+				if LineBuilder.HEADER in line.elDecorators and not headerAdded:
+					line.insertContentCell(self.childColName, LineBuilder.HEADER)
+					headerAdded = True
+				elif not LineBuilder.HEADER in line.elDecorators and not contentAdded:
+					# If I am expandable (then I must be expanded), add my down arrow
+					if len(self.effChildren) > 1:
+						contentLine = Chars.DOWN_ARROW + ' ' + self.myContent
+					# Otherwise I'm just a normal non colapsable cell
+					else:
+						contentLine = self.myContent
+					line.insertContentCell(contentLine, LineBuilder.FOCUSED if self.isFocused else LineBuilder.NORMAL, self)
+					contentAdded = True
+
+			# If we didn't a header, insert it at the top (first non hline index)
+			if not headerAdded:
+				for c in range(len(renderedLines)):
+					if isinstance(renderedLines[c], LineBuilder):
+						renderedLines.insert(c, LineBuilder(self.colWidths, [self.childColName], self, elDecorators = LineBuilder.HEADER))
+						break
+
+#			c = 0
+#			while c < len(renderedLines) and isinstance(renderedLines[c], HLine):
+#				c += 1
+
+#			renderedLines[c].insertContentCell(self.childColName, LineBuilder.HEADER)
 
 			# If I am expandable (then I must be expanded), add my down arrow
-			if len(self.effChildren) > 1:
-				contentLine = Chars.DOWN_ARROW + ' ' + self.myContent
+#			if len(self.effChildren) > 1:
+#				contentLine = Chars.DOWN_ARROW + ' ' + self.myContent
 			# Otherwise I'm just a normal non colapsable cell
-			else:
-				contentLine = self.myContent
-			renderedLines[c+1].insertContentCell(contentLine, LineBuilder.FOCUSED if self.isFocused else LineBuilder.NORMAL)
+#			else:
+#				contentLine = self.myContent
+#			renderedLines[c+1].insertContentCell(contentLine, LineBuilder.FOCUSED if self.isFocused else LineBuilder.NORMAL, self)
 
 		renderedLines.append(HLine(self))
 
@@ -253,7 +320,7 @@ class Node:
 		return self.effChildren[-1].getBottomContentLen() + 1
 
 	def __str__(self):
-		return self.myContent
+		return self.myContent + (' X' if self.hidden else '')
 
 # A leaf node is a node that cannot be collapsed, with no children that can be collapsed
 class LeafNode(Node):
@@ -280,6 +347,7 @@ class LeafNode(Node):
 		if node is not None:
 			self.baseHeaderLine = []
 			self.baseContentLines: List[List[str]] = [[]]
+			self.headerHidden = False
 
 			deepestChild = node
 			while len(deepestChild.children) > 0:
@@ -310,6 +378,7 @@ class LeafNode(Node):
 			self.focusedLineIdx = focusedLineIdx
 			self.focusedCellIdx = focusedCellIdx
 
+		self.effColWidths = self.colWidths
 		self.children = []
 		self.canCollapse = False
 		self.isExpanded = False
@@ -354,8 +423,9 @@ class LeafNode(Node):
 		self.effChildren = []
 		renderedLines: List[LineBuilder] = [HLine(self)]
 
-		if self.baseHeaderLine is not None and len(self.baseHeaderLine) > 0:
-			renderedLines.append(LineBuilder(self.colWidths, self.baseHeaderLine, self, elDecorators = LineBuilder.HEADER))
+		if self.baseHeaderLine is not None and len(self.baseHeaderLine) > 0 and not self.headerHidden:
+			renderedLines.append(LineBuilder(self.effColWidths, self.baseHeaderLine, self, elDecorators = LineBuilder.HEADER))
+
 		if self.baseContentLines is not None and len(self.baseContentLines) > 0:
 			for r in range(len(self.baseContentLines)):
 				line = self.baseContentLines[r]
@@ -366,7 +436,7 @@ class LeafNode(Node):
 					elDecorators = [LineBuilder.FOCUSED if c == self.focusedCellIdx else LineBuilder.NORMAL for c in range(len(line))]
 				else:
 					elDecorators = LineBuilder.NORMAL
-				renderedLines.append(LineBuilder(self.colWidths, line, self, elDecorators = elDecorators))
+				renderedLines.append(LineBuilder(self.effColWidths, line, self, elDecorators = elDecorators))
 
 		# Only prepend an hline before the child starts if the first line was not absorbed
 		# Otherwise there will be a line between the first and second lines weirdly
@@ -374,7 +444,7 @@ class LeafNode(Node):
 		return renderedLines
 
 	def __str__(self):
-		return str(self.baseContentLines[self.focusedLineIdx][self.focusedCellIdx]) + ' ' + str(self.focusedLineIdx) + ', ' + str(self.focusedCellIdx)
+		return str(self.baseContentLines[self.focusedLineIdx][self.focusedCellIdx]) + ' ' + str(self.focusedLineIdx) + ', ' + str(self.focusedCellIdx) + (' X' if self.hidden else '')
 
 	def focusDown(self):
 		# If we can focus down within the content lines, do so
@@ -382,7 +452,7 @@ class LeafNode(Node):
 			self.focusedLineIdx += 1
 			return self
 		# Otherwise, do the default node focus down (pick next child)
-		return super().focusDown()
+		return super().focusDown(self)
 
 	def focusUp(self):
 		# If we can focus up within the content lines, do it
@@ -390,12 +460,13 @@ class LeafNode(Node):
 			self.focusedLineIdx -= 1
 			return self
 		# Otherwise ivoke the default focus up
-		return super().focusUp()
+		return super().focusUp(self)
 
 
 	def focusLeft(self):
 		if self.focusedCellIdx-1 < 0:
-			return self.parent
+			self.focusOut()
+			return self.parent.focusIn()
 		self.focusedCellIdx -= 1
 		return self
 
@@ -404,12 +475,21 @@ class LeafNode(Node):
 			self.focusedCellIdx += 1
 		return self
 
+	def focusOut(self):
+		self.isFocused = False
+		return self.depth + self.focusedCellIdx
+
+	def focusIn(self, depth=-1, idx=0):
+		self.isFocused = True
+		self.focusedCellIdx = max(0, min(depth - self.depth, len(self.baseContentLines[self.focusedLineIdx])-1))
+		return self
+
 
 	def getTopColWidths(self):
-		return self.colWidths
+		return self.effColWidths
 
 	def getBottomColWidths(self):
-		return self.colWidths
+		return self.effColWidths
 
 	def getTopContentLen(self):
 		return len(self.baseContentLines[0])

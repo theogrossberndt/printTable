@@ -50,13 +50,13 @@ class ScrollableWindow:
 		winMax = self.top + self.h
 
 		# If the line is already in view, theres nothing to do
-		if lineY >= winMin and lineY < winMax:
+		if lineY >= winMin and lineY < winMax - 2:
 			return
 
 		# If the behavior is min scroll put lineY to either the top (if its above the current win), or the bottom (if below)
 		if behavior == ScrollableWindow.MIN_SCROLL:
 			if lineY < winMin:
-				self.scrollTo(lineY-1)
+				self.scrollTo(lineY)
 			else:
 				self.scrollTo(lineY - self.h + 2)
 

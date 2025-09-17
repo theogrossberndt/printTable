@@ -16,13 +16,17 @@ class RootNode(Node):
 
 	# This should only be called if the first child recursively calls it without knowing
 	# In that case, return the top node
-	def focusUp(self):
-		return self.children[0]
+	def focusUp(self, node = None):
+		node = node if node is not None else self
+		depth = node.focusOut()
+		return self.children[0].focusIn(depth, 0)
 
 	# Same thing as focus up, but with the bottom child
 	# Return it
-	def focusDown(self):
-		return self.children[-1]
+	def focusDown(self, node = None):
+		node = node if node is not None else self
+		depth = node.focusOut()
+		return self.children[-1].focusIn(depth, -1)
 
 
 	def render(self):
