@@ -1,11 +1,5 @@
-from .data import Tree
-from .drawing import ScrollableWindow
-
-#from .rootNode import RootNode
-#from .node import Node
-#from .chars import Chars
-#from .config import Config
-#from .line import Line
+from ..data import Tree
+from ..drawing import ScrollableWindow
 
 import curses
 import pyperclip

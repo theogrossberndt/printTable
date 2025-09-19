@@ -16,22 +16,22 @@ class ScrollableWindow:
 
 
 	def drawAll(self, lines: LineBlock):
-#		self.contentLen = len(lines)
-#		for y in range(self.contentLen):
-#			effY = y-self.top
-#			if effY < 0 or effY > self.h:
-#				continue
-#			try:
-#				if isinstance(lines[y], Line):
-#					lines[y].draw(self.win, effY)
-#				elif isinstance(lines[y], HLine):
-#					lines[y].draw(self.win, effY, isTop = y == 0, isBottom = y == self.contentLen-1)
-#			except curses.error:
-#				pass
-#			except Exception as e:
-#				exceptionStr = str(e)
-#				self.win.addstr(effY, 0, exceptionStr[:min(len(exceptionStr), self.w)])
 		self.contentLen = lines.draw(self.win, y = -1 * self.top) + self.top
+
+
+	def erase(self):
+		self.contentLen = 0
+		self.win.erase()
+
+
+	def addstr(self, y, x, string, *args):
+		self.contentLen = max(self.contentLen, y)
+		effY = y - self.top
+		if effY >= 0 and effY <= self.h:
+			self.win.addstr(effY, x, string, *args)
+
+	def getch(self):
+		return self.win.getch()
 
 
 	def scrollTo(self, y):
@@ -48,9 +48,10 @@ class ScrollableWindow:
 		self.scrollTo(self.top - step)
 
 
-	def scrollIntoView(self, lineYTop, lineYBottom, behavior = MIN_SCROLL):
+	def scrollIntoView(self, lineYTop, lineYBottom = None, behavior = MIN_SCROLL):
 		winMin = self.top
 		winMax = self.top + self.h
+		lineYBottom = lineYBottom if lineYBottom is not None else lineYTop
 
 		# If the line is already in view, theres nothing to do
 		if lineYTop >= winMin and lineYBottom < winMax - 2:
