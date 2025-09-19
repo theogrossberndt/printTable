@@ -1,5 +1,5 @@
 from .hline import HLine
-from .lineBuilder import LineBuilder
+from .line import Line
 from typing import List
 
 from .node import Node
@@ -93,17 +93,17 @@ class LeafNode(Node):
 
 	def render(self):
 		self.effChildren = []
-		renderedLines: List[LineBuilder] = []
-#		renderedLines: List[LineBuilder] = [HLine(self)]
+		renderedLines: List[Line] = []
+#		renderedLines: List[Line] = [HLine(self)]
 
 		# Always render a header and content line if available
 		if self.baseHeaderLine is not None and len(self.baseHeaderLine) > 0:
-			renderedLines.append(LineBuilder(self.colWidths, self.baseHeaderLine, elDecorators = LineBuilder.HEADER))
+			renderedLines.append(Line(self.colWidths, self.baseHeaderLine, elDecorators = Line.HEADER))
 #		if self.contentLine is not None and len(self.contentLine) > 0:
 		if self.baseContentLines is not None and len(self.baseContentLines) > 0:
 			for line in self.baseContentLines:
 				if line is not None and len(line) > 0:
-					renderedLines.append(LineBuilder(self.colWidths, line, elDecorators = LineBuilder.NORMAL))
+					renderedLines.append(Line(self.colWidths, line, elDecorators = Line.NORMAL))
 
 		# This will only be the case if this node was NOT rumpelstilskin'd
 #		if len(renderedLines) > 0:
@@ -111,7 +111,7 @@ class LeafNode(Node):
 
 #		for contentLine in self.additionalContentLines:
 #			if contentLine is not None and len(contentLine) > 0:
-#				renderedLines.append(LineBuilder(self.topColWidths, contentLine, elDecorators = LineBuilder.NORMAL))
+#				renderedLines.append(Line(self.topColWidths, contentLine, elDecorators = Line.NORMAL))
 
 		# Only prepend an hline before the child starts if the first line was not absorbed
 		# Otherwise there will be a line between the first and second lines weirdly

@@ -1,16 +1,16 @@
 import curses
+from typing import List, Union
 from .chars import Chars, SepClass
-from .lineBuilder import LineBuilder
+from .line import Line
+from .connectable import Connectable
 
 class DummyWindow:
 	def __init__(self, window):
 		self.window = window
 		self.string = ''
 
-
 	def getmaxyx(self):
 		return self.window.getmaxyx()
-
 
 	def addstr(self, y, x, val, *args):
 		lenDiff = (x + len(str(val))) - len(self.string)
@@ -26,12 +26,10 @@ class DummyWindow:
 
 
 class HLine:
-	def __init__(self, nodes, sepClass = None, decorator = 0):
+	def __init__(self, nodes: Union[Connectable, List[Connectable]], sepClass = None, decorator = 0):
 		self.nodes = nodes[:min(2, len(nodes))] if isinstance(nodes, list) else [nodes]
 		self.sepClass = sepClass if sepClass is not None else Chars.singleHLineSep
 		self.decorator = decorator
-		# Needed to play nice with Line objects
-		self.isFocusable = False
 
 	def merge(self, other):
 		# The shallowest node of each hline should be kept
@@ -66,14 +64,14 @@ class HLine:
 
 
 		if topNode is not None:
-			topLine = LineBuilder(topNode.getBottomColWidths(), ['' for _ in range(topNode.getBottomContentLen())], None, sepClass = sep)
+			topLine = Line(topNode.getBottomColWidths(), ['' for _ in range(topNode.getBottomContentLen())], None, sepClass = sep)
 			topLine.draw(dummyWin, 0)
 			topStr = dummyWin.steal()
 		else:
 			topStr = ''
 
 		if bottomNode is not None:
-			bottomLine = LineBuilder(bottomNode.getTopColWidths(), ['' for _ in range(bottomNode.getTopContentLen())], None, sepClass = sep)
+			bottomLine = Line(bottomNode.getTopColWidths(), ['' for _ in range(bottomNode.getTopContentLen())], None, sepClass = sep)
 			bottomLine.draw(dummyWin, 0)
 			bottomStr = dummyWin.steal()
 		else:

@@ -1,6 +1,5 @@
 import pandas as pd
-from .hline import HLine
-from .line import Line
+from .drawing import Line, LineBlock
 from .chars import Chars
 from typing import List
 import curses

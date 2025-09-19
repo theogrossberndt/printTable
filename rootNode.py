@@ -1,6 +1,6 @@
 import pandas as pd
 from .node import Node
-from .lineBuilder import LineBuilder
+from .line import Line
 from .hline import HLine
 from .config import Config
 
@@ -42,7 +42,7 @@ class RootNode(Node):
 					pendingHLine = line
 				else:
 					pendingHLine = pendingHLine.merge(line)
-			elif isinstance(line, LineBuilder):
+			elif isinstance(line, Line):
 				if pendingHLine is not None:
 					lines.append(pendingHLine)
 					pendingHLine = None
