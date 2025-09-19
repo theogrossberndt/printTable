@@ -5,7 +5,7 @@ import curses
 def _printLine(window, y, string, isFocused, isSelected, *args):
 	window.addstr(y, 0, '[', curses.A_BOLD)
 	if isSelected:
-		window.addstr(y, 1, '\u2714', curses.color_pair(1) | curses.A_BOLD | (curses.A_REVERSE if isFocused else 0))
+		window.addstr(y, 1, 'X', curses.color_pair(1) | curses.A_BOLD | (curses.A_REVERSE if isFocused else 0))
 	else:
 		window.addstr(y, 1, ' ', curses.A_REVERSE if isFocused else 0)
 	window.addstr(y, 2, ']', curses.A_BOLD)
@@ -27,19 +27,13 @@ def drawEnter(window, isFocused, enterStr = 'Continue'):
 	window.refresh()
 
 
-def _showSelectableList(scr, options, multiselection = False, header = None, allowAll = True):
-	# Window initiation stuff
-	curses.curs_set(0)
-	curses.raw()
-	Keys.initKeys()
-	w, h = curses.COLS, curses.LINES
+def setupWindows(scr, header, multiselection):
+	h, w = scr.getmaxyx()
 
 	headerH = 4 if header is not None else 0
 	topH = 1 + headerH
 
-	instructionWin = curses.newwin(topH, w)
-	instructionWin.idcok(False)
-	instructionWin.idlok(False)
+	instructionWin = scr.derwin(topH, w, 0, 0)
 	if header is not None:
 		instructionWin.addstr(0, 0, ' '.center(w-1, ' '), curses.A_REVERSE | curses.A_BOLD)
 		instructionWin.addstr(1, 0, str(header).center(w-1, ' '), curses.A_REVERSE | curses.A_BOLD)
@@ -51,26 +45,34 @@ def _showSelectableList(scr, options, multiselection = False, header = None, all
 		instructionWin.addstr(headerH, 1, 'Please select one of the following options:')
 	instructionWin.refresh()
 
+	bottomH = 5
+	enterW = len('   Continue   ')
+	enterWin = scr.derwin(3, enterW, h-bottomH, int(w/2-enterW/2))
+	drawEnter(enterWin, False)
+
+	bottomWin = scr.derwin(1, w, h-1, 0)
+	bottomWin.addstr(0, 0, 'Use the arrow keys to focus, the enter key to toggle an option, and shift arrows to toggle between sections'.center(w-1, ' '), curses.A_REVERSE | curses.A_BOLD)
+	bottomWin.refresh()
+
+	win = scr.derwin(h - topH - bottomH, w-4, topH, 2)
+
+	return (enterWin, win)
+
+
+def _showSelectableList(scr, options, multiselection = False, header = None, allowAll = True):
+	# Window initiation stuff
+	curses.curs_set(0)
+	curses.raw()
+	scr.keypad(True)
+	scr.idcok(False)
+	scr.idlok(False)
+	Keys.initKeys()
+
 	curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
 	curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_GREEN)
 	curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)
 
-
-	bottomH = 5
-	enterW = len('   Continue   ')
-	enterWin = curses.newwin(3, enterW, h-bottomH, int(w/2-enterW/2))
-	drawEnter(enterWin, False)
-
-	bottomWin = curses.newwin(1, w, h-1, 0)
-	bottomWin.addstr(0, 0, 'Use the arrow keys to focus, the enter key to toggle an option, and shift arrows to toggle between sections'.center(w-1, ' '), curses.A_REVERSE | curses.A_BOLD)
-	bottomWin.refresh()
-
-	win = curses.newwin(h - topH - bottomH, w-4, topH, 2)
-
-	win.keypad(True)
-	win.idcok(False)
-	win.idlok(False)
-
+	enterWin, win = setupWindows(scr, header, multiselection)
 	window = ScrollableWindow(win)
 
 	cursorIdx = 0
@@ -88,13 +90,17 @@ def _showSelectableList(scr, options, multiselection = False, header = None, all
 		for c in range(len(options)):
 			y = c+1 if useAllOption else c
 			_printLine(window, y, options[c], cursorIdx == y and not onEnter, c in selected)
+		win.refresh()
 
-		ch = window.getch()
+		ch = scr.getch()
 
 		if ch == ord('q'):
 			return set()
 		if ch == curses.KEY_RESIZE:
-			curses.resizeterm(*scr.getmaxyx())
+			scr.erase()
+			enterWin, win = setupWindows(scr, header, multiselection)
+			window.setWindow(win)
+			scr.refresh()
 			continue
 
 		if ch == Keys.UP:
@@ -123,6 +129,9 @@ def _showSelectableList(scr, options, multiselection = False, header = None, all
 						selected = {optionIdx}
 			else:
 				break
+		else:
+			enterWin.addstr(0, 0, 'Key: ' + str(c))
+			enterWin.refresh()
 
 		# Wrap cursorIdx
 		effLen = len(options) + (1 if useAllOption else 0)

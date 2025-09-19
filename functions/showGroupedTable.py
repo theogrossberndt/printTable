@@ -44,26 +44,33 @@ def showHelp(win):
 	win.refresh()
 
 
-def _showGroupedTable(tree, scr):
-	# Window initiation stuff
-	curses.raw()
-	w, h = curses.COLS, curses.LINES
+def setupWindows(scr):
+	h, w = scr.getmaxyx()
 
 	helpLineCount = len(getHelpStr(w-3))
-	helpWin = curses.newwin(helpLineCount, w, h-helpLineCount, 0)
+	helpWin = scr.derwin(helpLineCount, w, h-helpLineCount, 0)
 	showHelp(helpWin)
 
-	statusWin = curses.newwin(1, w, 0, 0)
+	statusWin = scr.derwin(1, w, 0, 0)
 	statusWin.bkgd(' ', curses.color_pair(0) | curses.A_REVERSE | curses.A_BOLD)
-	win = curses.newwin(h-helpLineCount-1, w, 1, 0)
 
+	win = scr.derwin(h-helpLineCount-1, w, 1, 0)
 
 	win.keypad(True)
 	win.idcok(False)
 	win.idlok(False)
 	statusWin.idcok(False)
 	statusWin.idlok(False)
+
+	return (helpWin, statusWin, win)
+
+
+def _showGroupedTable(tree, scr):
+	# Window initiation stuff
+	curses.raw()
 	curses.curs_set(0)
+
+	helpWin, statusWin, win = setupWindows(scr)
 
 	scrollWindow = ScrollableWindow(win)
 	focusNode = tree.root.children[0]
@@ -87,7 +94,10 @@ def _showGroupedTable(tree, scr):
 		if ch == ord('q'):
 			break
 		if ch == curses.KEY_RESIZE:
-			curses.resizeterm(*scr.getmaxyx())
+			scr.erase()
+			helpWin, statusWin, win = setupWindows(scr)
+			scrollWindow.setWindow(win)
+			scr.refresh()
 			continue
 
 		# Focus management keys

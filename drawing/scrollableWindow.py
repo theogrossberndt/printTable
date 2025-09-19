@@ -14,6 +14,12 @@ class ScrollableWindow:
 		self.contentLen = 0
 		self.top = 0
 
+
+	def setWindow(self, window):
+		self.win = window
+		self.h, self.w = self.win.getmaxyx()
+
+
 	def drawAll(self, lines: LineBlock):
 		lines.draw(self, y = 0)
 
