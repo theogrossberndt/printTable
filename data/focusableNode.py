@@ -2,10 +2,27 @@ from .node import Node
 from ..drawing import Line
 
 class FocusableNode(Node):
-	def __init__(self, *args, **kwargs):
+	def __init__(self, *args, isFocused = False, focusedIdx = 0, **kwargs):
 		super().__init__(*args, **kwargs)
-		self.isFocused = False
-		self.focusedIdx = 0
+		self.isFocused = isFocused
+		self.focusedIdx = focusedIdx
+
+	@staticmethod
+	def copy(other):
+		return FocusableNode.promote(other)
+
+	@staticmethod
+	def promote(node: Node):
+		args, kwargs = node.getArgs()
+		return FocusableNode(*args, **kwargs)
+
+
+	def getArgs(self):
+		args, kwargs = super().getArgs()
+		kwargs['isFocused'] = self.isFocused
+		kwargs['focusedIdx'] = self.focusedIdx
+		return (args, kwargs)
+
 
 	def click(self):
 		# If i'm collapsed, dont allow clicks on the last possible focusedIdx

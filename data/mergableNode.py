@@ -25,11 +25,11 @@ class MergableNode(FocusableNode):
 			raise TypeError("MergableNode promotion expected FocusableNode but received " + str(type(node)))
 		return MergableNode(node._contentLine, node._headerLine, node._colWidths, node._children, node.parent, node.depth, node.colSummary)
 
-	def __init__(self, *args, **kwargs):
+	def __init__(self, *args, isMerged = None, effColWidths = None, **kwargs):
 		super().__init__(*args, **kwargs)
 
-		self.isMerged = False
-		self._effColWidths = self._colWidths
+		self.isMerged = False if isMerged is None else isMerged
+		self._effColWidths = self._colWidths if effColWidths is None else effColWidths
 
 
 	def canMerge(self, other: IMergableNode) -> bool:

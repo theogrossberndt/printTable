@@ -13,16 +13,27 @@ class INode:
 #	- isCollapsed: A boolean indicating if the node is both collapsible (len(self.children) > 1) and is collapsed (not self.isExpanded)
 #	- contentDecorators: A list of line types matching the length of self.contentLine
 class Node:
-	def __init__(self, contentLine: Union[List[str], str], childHeaderLine: Union[List[str], str], colWidths: List[int], children: List[INode], parent: INode, depth: int, colSummary: str = None, colSummaryLong: str = None):
-		self._contentLine = contentLine if isinstance(contentLine, list) else [contentLine]
-		self._childHeaderLine = childHeaderLine if isinstance(childHeaderLine, list) else [childHeaderLine]
-		self._colWidths = colWidths
-		self._children = children
-		self.parent = parent
-		self.depth = depth
-		self.colSummary = colSummary
-		self.colSummaryLong = colSummaryLong if colSummaryLong is not None else colSummary
-		self.isExpanded = False
+	def __init__(self, contentLine, childHeaderLine, colWidths, children, parent, depth, colSummary = None, colSummaryLong = None, isExpanded = False):
+		self._contentLine: List[str] = contentLine if isinstance(contentLine, list) else [contentLine]
+		self._childHeaderLine: List[str] = childHeaderLine if isinstance(childHeaderLine, list) else [childHeaderLine]
+		self._colWidths: list[int] = colWidths
+		self._children: List[INode] = children
+		self.parent: INode = parent
+		self.depth: int = depth
+		self.colSummary: str = colSummary
+		self.colSummaryLong: str = colSummaryLong if colSummaryLong is not None else colSummary
+		self.isExpanded: bool = isExpanded
+
+	@staticmethod
+	def copy(other: INode):
+		args, kwargs = other.getArgs()
+		return Node(*args, **kwargs)
+
+	def getArgs(self):
+		args = [self._contentLine, self._childHeaderLine, self._colWidths, self._children, self.parent, self.depth, self.colSummary, self.colSummaryLong, self.isExpanded]
+		kwargs = {}
+		return (args, kwargs)
+
 
 	def click(self):
 		self.isExpanded = not self.isExpanded

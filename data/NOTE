@@ -1,0 +1,2 @@
+I need to rethink the class structure with LeafNode being a subclass of Node
+Promotion doesn't really work because then any changes to the LeafNode's state are not perpetuated through to the node it is derived from, so whenever effChildren is recalculated all state is lost

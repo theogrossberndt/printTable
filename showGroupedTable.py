@@ -40,9 +40,9 @@ def _showGroupedTable(tree, scr):
 		win.erase()
 		scrollWindow.drawAll(lineBlock)
 
-#		statusWin.erase()
-#		statusWin.addstr(0, 0, str(focusNode))
-#		statusWin.refresh()
+		statusWin.erase()
+		statusWin.addstr(0, 0, str(focusNode))
+		statusWin.refresh()
 
 		ch = win.getch()
 
@@ -77,9 +77,12 @@ def _showGroupedTable(tree, scr):
 		elif ch == ord('c'):
 			pyperclip.copy(str(focusNode))
 
-#		elif ch == ord('h'):
-#			focusNode.handleKey(Node.HIDE)
-#			focusNode = focusNode.focusDown()
+		elif ch == ord('h'):
+			newFocusNode = focusNode.focusDown()
+			scroll = True
+
+			focusNode.hide()
+			focusNode = newFocusNode
 		elif ch == curses.KEY_ENTER or ch == ord('\n') or ch == ord('\r') or ch == ord('o'):
 			focusNode.click()
 

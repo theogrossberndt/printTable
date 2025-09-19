@@ -10,11 +10,20 @@ class ChildCondensingNode(FocusableNode):
 		self.recalculateChildren = True
 		self.isHidden = False
 
+	def hide(self):
+		self.isHidden = not self.isHidden
+		if self.parent is not None:
+			self.parent.recalculateChildren = True
 
 	@property
 	def children(self):
 		if not self.recalculateChildren:
 			return self._effChildren
+
+		# Go through the current effChildren and copy any leaf node state back onto the original child
+		for child in self._effChildren:
+			if isinstance(child, LeafNode):
+				child.saveState()
 
 		self.recalculateChildren = False
 		self._effChildren = []
@@ -25,9 +34,18 @@ class ChildCondensingNode(FocusableNode):
 			if child.isHidden:
 				continue
 
+			# If a child is already a leaf node, demote it to a focusable node and promote it back to a child condensing node
+#			if isinstance(child, LeafNode):
+#				focusable = child.demote()
+#				focusable = ChildCondensingNode.promote(focusable)
+#				focusable.isHidden = child.isHidden
+#				self._children[c] = focusable
+#				child = focusable
+
 			# If a child is leafable, do it
 			if LeafNode.isLeaf(child):
 				leaf = LeafNode.promote(child)
+#				self._children[c] = leaf
 				self._effChildren.append(leaf)
 
 				# If the current clump is empty or the new leaf can be merged with the clump, add it
