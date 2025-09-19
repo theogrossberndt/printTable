@@ -1,4 +1,5 @@
 from ..drawing import ScrollableWindow
+from ..keys import Keys
 import curses
 
 def _printLine(window, y, string, isFocused, isSelected, *args):
@@ -29,6 +30,8 @@ def drawEnter(window, isFocused, enterStr = 'Continue'):
 def _showSelectableList(scr, options, multiselection = False, header = None, allowAll = True):
 	# Window initiation stuff
 	curses.curs_set(0)
+	curses.raw()
+	Keys.initKeys()
 	w, h = curses.COLS, curses.LINES
 
 	headerH = 4 if header is not None else 0
@@ -88,11 +91,14 @@ def _showSelectableList(scr, options, multiselection = False, header = None, all
 
 		ch = window.getch()
 
-		if ch == curses.KEY_UP:
+		if ch == ord('q'):
+			return set()
+
+		if ch == Keys.UP:
 			cursorIdx -= 1
-		elif ch == curses.KEY_DOWN:
+		elif ch == Keys.DOWN:
 			cursorIdx += 1
-		elif ch == curses.KEY_SR or ch == curses.KEY_SF:
+		elif ch == Keys.S_UP or ch == Keys.S_DOWN:
 			onEnter = not onEnter
 			drawEnter(enterWin, onEnter)
 		elif ch == curses.KEY_ENTER or ch == ord('\n') or ch == ord('\r'):

@@ -1,5 +1,6 @@
 from ..data import Tree
 from ..drawing import ScrollableWindow
+from ..keys import Keys
 
 import curses
 import pyperclip
@@ -45,6 +46,7 @@ def showHelp(win):
 
 def _showGroupedTable(tree, scr):
 	# Window initiation stuff
+	curses.raw()
 	w, h = curses.COLS, curses.LINES
 
 	helpLineCount = len(getHelpStr(w-3))
@@ -67,6 +69,8 @@ def _showGroupedTable(tree, scr):
 	focusNode = tree.root.children[0]
 	focusNode.focusIn(focusNode.depth)
 
+	Keys.initKeys()
+
 	while True:
 		# Rerender
 		lineBlock = tree.render()
@@ -85,31 +89,31 @@ def _showGroupedTable(tree, scr):
 
 		# Focus management keys
 		scroll = False
-		if ch == curses.KEY_UP:
+		if ch == Keys.UP:
 			focusNode = focusNode.focusUp()
 			scroll = True
-		elif ch == curses.KEY_DOWN:
+		elif ch == Keys.DOWN:
 			focusNode = focusNode.focusDown()
 			scroll = True
-		elif ch == curses.KEY_LEFT:
+		elif ch == Keys.LEFT:
 			focusNode = focusNode.focusLeft()
 			scroll = True
-		elif ch == curses.KEY_RIGHT:
+		elif ch == Keys.RIGHT:
 			focusNode = focusNode.focusRight()
 			scroll = True
 
 		# Scroll management keys
-		elif ch == curses.KEY_SR:
+		elif ch == Keys.S_UP:
 			scrollWindow.scrollUp()
-		elif ch == curses.KEY_SF:
+		elif ch == Keys.S_DOWN:
 			scrollWindow.scrollDown()
-		elif ch == curses.KEY_NPAGE:
+		elif ch == Keys.PG_DOWN:
 			# TODO: Make this better so its always about the same number of rows
 			# Rn this scrolls 10 nodes, but a node might be 2 rows, or it might be 30
 			for _ in range(10):
 				focusNode = focusNode.focusDown()
 			scroll = True
-		elif ch == curses.KEY_PPAGE:
+		elif ch == Keys.PG_UP:
 			for _ in range(10):
 				focusNode = focusNode.focusUp()
 			scroll = True
