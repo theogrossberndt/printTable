@@ -129,9 +129,9 @@ def _showSelectableList(scr, options, multiselection = False, header = None, all
 						selected = {optionIdx}
 			else:
 				break
-		else:
-			enterWin.addstr(0, 0, 'Key: ' + str(c))
-			enterWin.refresh()
+#		else:
+#			enterWin.addstr(0, 0, 'Key: ' + str(c))
+#			enterWin.refresh()
 
 		# Wrap cursorIdx
 		effLen = len(options) + (1 if useAllOption else 0)

@@ -36,7 +36,11 @@ class ScrollableWindow:
 		self.contentLen = max(self.contentLen, y+1)
 		effY = y - self.top
 		if effY >= 0 and effY < self.h:
+			# Check for widths now
+			if x + len(string) >= self.w:
+				string = string[:self.w - x - 1]
 			self.win.addstr(effY, x, string, *args)
+
 
 	def getch(self):
 		return self.win.getch()
