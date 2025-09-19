@@ -14,20 +14,22 @@ class ScrollableWindow:
 		self.contentLen = 0
 		self.top = 0
 
-
 	def drawAll(self, lines: LineBlock):
-		self.contentLen = lines.draw(self.win, y = -1 * self.top) + self.top
-
+		lines.draw(self, y = 0)
 
 	def erase(self):
 		self.contentLen = 0
 		self.win.erase()
 
 
+	def getmaxyx(self):
+		return self.win.getmaxyx()
+
+
 	def addstr(self, y, x, string, *args):
-		self.contentLen = max(self.contentLen, y)
+		self.contentLen = max(self.contentLen, y+1)
 		effY = y - self.top
-		if effY >= 0 and effY <= self.h:
+		if effY >= 0 and effY < self.h:
 			self.win.addstr(effY, x, string, *args)
 
 	def getch(self):

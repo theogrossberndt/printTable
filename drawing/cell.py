@@ -19,7 +19,7 @@ class Cell:
 		if startX + len(val) < maxX:
 			window.addstr(y, startX, val, decorator)
 		else:
-			repVal = val[:maxX - startX]
+			repVal = val[:maxX - startX-1]
 			if isContent:
 				repVal = repVal[:-3] + '...'
 			window.addstr(y, startX, repVal, decorator)

@@ -8,13 +8,53 @@ import pyperclip
 def printable(*args):
 	return ' '.join([str(arg) for arg in args])
 
+def getHelpStr(maxW):
+	quit = 'q: quit'
+	copy = 'c: copy'
+	hide = 'h: hide'
+	enter = '[enter]: expand/collapse cell'
+	nav = '[arrow keys]: navigate cells'
+	scroll = '[shift up/down]: scroll window'
+	page = '[page up/down]: jump 10 rows'
+	keys = [quit, copy, hide, enter, nav, page, scroll]
+	breakIndex = len(keys)
+	helpStrs = []
+	while len(keys) > 0:
+		if breakIndex < 0:
+			helpStrs.append(keys[0][:maxW])
+			keys[0] = keys[0][maxW:]
+			breakIndex = len(keys)
+		subKeys = keys[:breakIndex]
+		helpString = '    '.join(subKeys)
+		if len(helpString) > maxW:
+			breakIndex -= 1
+		else:
+			helpStrs.append(helpString)
+			keys = keys[breakIndex:]
+	return helpStrs
+
+
+def showHelp(win):
+	maxY, maxX = win.getmaxyx()
+	win.erase()
+	helpStrs = getHelpStr(maxX-3)
+	for c in range(len(helpStrs)):
+		win.addstr(c, 0, helpStrs[c].center(maxX-1, ' '), curses.A_REVERSE | curses.A_BOLD)
+	win.refresh()
+
 
 def _showGroupedTable(tree, scr):
 	# Window initiation stuff
-	w, h = curses.COLS, curses.LINES-2
+	w, h = curses.COLS, curses.LINES
 
-	win = curses.newwin(h, w)
-	statusWin = curses.newwin(1, w, h, 0)
+	helpLineCount = len(getHelpStr(w-3))
+	helpWin = curses.newwin(helpLineCount, w, h-helpLineCount, 0)
+	showHelp(helpWin)
+
+	statusWin = curses.newwin(1, w, 0, 0)
+	statusWin.bkgd(' ', curses.color_pair(0) | curses.A_REVERSE | curses.A_BOLD)
+	win = curses.newwin(h-helpLineCount-1, w, 1, 0)
+
 
 	win.keypad(True)
 	win.idcok(False)
@@ -31,11 +71,11 @@ def _showGroupedTable(tree, scr):
 		# Rerender
 		lineBlock = tree.render()
 
-		win.erase()
+		scrollWindow.erase()
 		scrollWindow.drawAll(lineBlock)
 
 		statusWin.erase()
-		statusWin.addstr(0, 0, str(focusNode))
+		statusWin.addstr(0, 2, str(focusNode))
 		statusWin.refresh()
 
 		ch = win.getch()
@@ -64,9 +104,15 @@ def _showGroupedTable(tree, scr):
 		elif ch == curses.KEY_SF:
 			scrollWindow.scrollDown()
 		elif ch == curses.KEY_NPAGE:
-			scrollWindow.scrollDown(20)
+			# TODO: Make this better so its always about the same number of rows
+			# Rn this scrolls 10 nodes, but a node might be 2 rows, or it might be 30
+			for _ in range(10):
+				focusNode = focusNode.focusDown()
+			scroll = True
 		elif ch == curses.KEY_PPAGE:
-			scrollWindow.scrollUp(20)
+			for _ in range(10):
+				focusNode = focusNode.focusUp()
+			scroll = True
 
 		elif ch == ord('c'):
 			pyperclip.copy(str(focusNode))
@@ -77,6 +123,7 @@ def _showGroupedTable(tree, scr):
 
 			focusNode.hide()
 			focusNode = newFocusNode
+
 		elif ch == curses.KEY_ENTER or ch == ord('\n') or ch == ord('\r') or ch == ord('o'):
 			focusNode.click()
 
@@ -88,7 +135,7 @@ def _showGroupedTable(tree, scr):
 
 		if scroll:
 			yTop, yBottom = lineBlock.getNodeYRange(focusNode)
-			scrollWindow.scrollIntoView(yTop + scrollWindow.top, yBottom + scrollWindow.top)
+			scrollWindow.scrollIntoView(yTop, yBottom)
 
 
 def showGroupedTable(tree: Tree):

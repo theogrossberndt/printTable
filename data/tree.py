@@ -1,6 +1,3 @@
-#from .node import Node
-#from .leafNode import LeafNode
-#from .focusableNode import FocusableNode
 from .childCondensingNode import ChildCondensingNode
 from ..config import Config
 from typing import List
@@ -12,8 +9,8 @@ class ITree:
 BaseNode = ChildCondensingNode
 
 class Tree:
-	def __init__(self, root: BaseNode):
-		self.root = root
+	def __init__(self, df: pd.DataFrame, config: Config):
+		self.root = Tree.buildTree(df, config)
 		self.root.isExpanded = True
 
 	def render(self):
@@ -88,5 +85,4 @@ class Tree:
 		for child in rootNode._children:
 			Tree._linkParent(child, rootNode)
 
-		return Tree(rootNode)
-
+		return rootNode

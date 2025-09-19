@@ -2,6 +2,7 @@ import pandas as pd
 from typing import Set
 
 class Config:
+	# TODO: Add non collapsible columns
 	def __init__(self, countableCols: Set[str], hiddenCols: Set[str], summarize = None, colNameCleanup = None):
 		self.countableCols = countableCols
 		self.hiddenCols = hiddenCols

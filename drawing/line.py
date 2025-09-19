@@ -74,9 +74,9 @@ class Line(Connectable):
 
 		startX: int = 0
 		maxY, maxX = window.getmaxyx()
-		# If this is out of window range exit gracefully
-		if y >= maxY or y < 0:
-			return startX
+		# If this is out of window range exit gracefully and skip all this calculation
+#		if y >= maxY or y < 0:
+#			return startX
 
 		# The number of empty cells is the difference between the colWidths and the content
 		firstContentC = len(self.colWidths) - len(self.content)

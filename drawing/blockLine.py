@@ -102,18 +102,17 @@ class LineBlock(Connectable):
 			return (0, 0)
 		return (yRange[0]-1, yRange[1]+1)
 
+
 	def draw(self, window: curses.window, y: int = 0, prevLine: Connectable = None, drawTopHLine = True, drawBottomHLine = True) -> int:
 		if len(self.lines) == 0:
 			return y
 
-		maxY, maxX = window.getmaxyx()
 		startY = y
 
 		# Draw the top hline
 		if drawTopHLine:
 			topNodes = [prevLine, self] if prevLine is not None else [self]
-			if startY < maxY and startY >= 0:
-				HLine(topNodes).draw(window, startY, isTop = prevLine is None, isBottom = False)
+			HLine(topNodes).draw(window, startY, isTop = prevLine is None, isBottom = False)
 			startY += 1
 
 		for c in range(len(self.lines)):
@@ -128,8 +127,7 @@ class LineBlock(Connectable):
 
 		# Draw the bottom hline
 		if drawBottomHLine:
-			if startY < maxY:
-				HLine([self]).draw(window, startY, isTop = False, isBottom = True)
+			HLine([self]).draw(window, startY, isTop = False, isBottom = True)
 			startY += 1
 
 		return startY
