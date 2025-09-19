@@ -86,6 +86,9 @@ def _showGroupedTable(tree, scr):
 
 		if ch == ord('q'):
 			break
+		if ch == curses.KEY_RESIZE:
+			curses.resizeterm(*scr.getmaxyx())
+			continue
 
 		# Focus management keys
 		scroll = False

@@ -93,6 +93,9 @@ def _showSelectableList(scr, options, multiselection = False, header = None, all
 
 		if ch == ord('q'):
 			return set()
+		if ch == curses.KEY_RESIZE:
+			curses.resizeterm(*scr.getmaxyx())
+			continue
 
 		if ch == Keys.UP:
 			cursorIdx -= 1
